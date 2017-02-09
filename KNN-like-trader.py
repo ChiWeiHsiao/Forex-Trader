@@ -13,13 +13,79 @@ headers = {"Content-Type": 'application/json' ,'Authorization': 'Bearer '+OANDA_
 
 priceLine = -1
 PRICELINE_OFFSET = 0.00001
-STD = 0.00003
-STD = 0.00006
-#STD = 0.0005
 ORDER = 20000
 
 TAKE_PROFIT = 0.00015
 STOP_LOSS = 0.00015
+
+#parameters
+instr = "EUR_USD"
+base_units = 1000
+history = []
+kval = 5
+
+def saveHistoryNodes():
+    # 50 candle prices in one node (25min), 100 nodes in history(1.7day)
+    fromTime = (datetime.utcnow() - timedelta(days=2, hours=0, minutes=0, seconds=0)).isoformat()+"Z"
+    count = '5000'
+    granularity = 'S15'
+    instr = "EUR_USD"
+
+    url = "https://api-fxpractice.oanda.com/v3/instruments/"+instr+"/candles"
+    query = {'from': fromTime, 'count': count, 'price': 'M', 'granularity': granularity }
+    r = requests.get(url, headers=headers, params=query)
+    if r.status_code != 200:
+        print "Save History Candle, Fail: ", r.status_code
+        return -1
+    else:
+        candles = json.loads(r.text)['candles']
+        index = 0
+        fp = open("history.txt", "w")
+
+        for i in range(100):
+            node = []
+            for j in range(50):
+                node.append(float(candles[index]['mid']['c']))
+                index = index + 1
+            history.append(node)
+        
+        fp.close()
+
+def getCurNode():
+    toTime = datetime.utcnow().isoformat()+"Z"
+    count = '50'
+    granularity = 'S15'
+    url = "https://api-fxpractice.oanda.com/v3/instruments/"+instr+"/candles"
+    query = {'count': count, 'to': toTime, 'price': 'M', 'granularity': granularity}
+    r = requests.get(url, headers=headers, params=query)
+    if r.status_code != 200:
+        print "getCurNode, Fail: ", r.status_code
+        return -1
+    else:
+        candles = json.loads(r.text)['candles']
+        cur = float (candles[-1]['mid']['c'])
+        node = []
+        for i in range(50):
+            node.append( float(candles[i]['mid']['c']) )
+
+def predictChange():
+    # use KNN-like mmethod to predict if the price will rise/drop
+    # [0] is oldest, [-1] is newest
+
+    # a list with kval(5) tuples
+    closestNodes = [] 
+    for i in range(kval):
+        closestNodes.append((1000.0,1000.0))
+
+    # calculate the distance between history-nodes and current-node
+    # keep the kval(5) closest nodes in the closestNodes[]
+    for node in history:
+        print
+
+    
+def decideOrderUnits():
+    units = 0
+    print "decide to order #", units, "units"
 
 def getCandle(fromTime, toTime, priceType, granularity):
     instr = "EUR_USD"
@@ -38,12 +104,17 @@ def getCandle(fromTime, toTime, priceType, granularity):
         cArr = np.array(cArr)
         std = np.std( cArr, dtype=np.float32)
 
+        print "candle 0: ", candles[0]['time']
+        print "candle -1: ", candles[-1]['time']
+        return -1
+
         if std < STD:
             priceLine = np.mean(cArr)
         else:
             priceLine = -1
-        #print "cur=", cur, ", std=", std
-        #print "priceLine=", priceLine
+        print "cur=", cur, ", std=", std
+        print "priceLine=", priceLine
+
         if priceLine==-1 or np.absolute(cur - priceLine) < PRICELINE_OFFSET:
             return 0 #stall
         elif cur - priceLine > 0:
@@ -129,18 +200,24 @@ def getAccountBalance():
         return -1
 
 if __name__ == "__main__":
+    saveHistoryNodes()
+    #getCurNode()
+    
+
+
+
+
+def run():
     times = 0
-    period = 1200
     print "====System Start===="
-    print "Use STD: ", STD
-    print "Use period: ", period
     start_balance = getAccountBalance()
 
     # times = 1 hour / 3 = 60 * 60 / 3
-    while times < period:
+    while times < 1200:
         times = times + 1
-        fromTime = (datetime.utcnow() - timedelta(hours=0, minutes=2, seconds=0)).isoformat()+"Z"
-        toTime = datetime.utcnow().isoformat()+"Z"
+        print "Run#", times
+        fromTime = (datetime.utcnow() - timedelta(hours=0, minutes=0, seconds=100)).isoformat()+"Z"
+        toTime = (datetime.utcnow() - timedelta(hours=0, minutes=0, seconds=20)).isoformat()+"Z"
         action =  getCandle(fromTime, toTime, 'M', 'S5')
         '''
         action == -1 -> fail to get candles
@@ -149,7 +226,6 @@ if __name__ == "__main__":
         action == 2 -> sell
         '''
         if action != 0 and action != -1:
-            print "\nRun#", times
             buySell_return = buySell(action)
             orderID = buySell_return[0]
             price = buySell_return[1]
@@ -167,6 +243,7 @@ if __name__ == "__main__":
                 stopLoss(orderID, stopPrice)
                 takeProfit(orderID, takePrice)
         time.sleep(2)
+        print
 
     end_balance = getAccountBalance()
     print "====System End===="
