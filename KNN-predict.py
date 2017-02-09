@@ -5,6 +5,8 @@ from datetime import datetime, timedelta
 import numpy as np
 from operator import itemgetter
 import time 
+import Queue
+import heapq
 
 #parameters
 instr = "EUR_USD"
@@ -15,7 +17,7 @@ historyY = [] #dimension: 49510
 testX = []
 testY = []
 
-kval = 9
+kval = 3
 
 def getHistoryNodes():
     # get history data from file
@@ -33,9 +35,11 @@ def getHistoryNodes():
 def getTestingNodes():
     # get history data from file
     # 50 candle prices in one node (25min), 1000 nodes in history(17day)
+
     with open("history-overlap-49510-nodes-2017jan.txt", "r") as f:
-    #with open("history-overlap-49510-nodes-2016dec.txt", "r") as f:
         print "Use Different Test Data (one month later)"
+    #with open("history-overlap-49510-nodes-2016dec.txt", "r") as f:
+        #print "Use Same Test Data (one month later)"
         next(f) #skip first line ( time )
         for line in f: #49510 lines
             data = line.split()
@@ -59,23 +63,27 @@ def predictChange():
     testLength = len(testY)
     historyLength = len(historyY)
     
-    numTestNodes = 300
+    numTestNodes = 1000
     print "number of Testing Nodes: ", numTestNodes
     #for t in range(testLength):
     for t in range(numTestNodes):
         # calculate the distance between history-nodes and current-node
         # choose the k closest nodes to vote
-        distances = []
-        for h in range(historyLength):
-            distances.append( ( h, distance(testX[t], historyX[h]) ) )
-            #(index, distance)
-        distances.sort(key=itemgetter(1)) #sort by distance
+        kneighbors = []
+        for h in range(kval):
+            heapq.heappush( kneighbors, (-distance(testX[t], historyX[h]), h))
+        for h in range(kval, historyLength):
+            newNodeDistance = -distance(testX[t], historyX[h])
+            if newNodeDistance > kneighbors[0][0]:
+                newNode = ( newNodeDistance, h )
+                heapq.heappushpop( kneighbors, newNode)
+                # node is ( -1*distance, index ) use '-1' to let queue be maxHeap
 
         rise = 0
         drop = 0
         # Vote for the answer by k neighbors
-        for neighbor in distances[0:kval]:
-            if( historyY[ neighbor[0] ] > 0 ):
+        for n in kneighbors:
+            if( historyY[ n[1] ] > 0 ):
                 rise = rise + 1
             else:
                 drop = drop + 1
@@ -91,15 +99,24 @@ def predictChange():
     
     print "Correct Prediction: ", correct
     print "Error Prediction: ", error
-    print "Correctness: ", correct / float(correct+error)
+    correctness = correct / float(correct+error)
+    print "Correctness: ", correctness
+    return correctness
     
 
 if __name__ == "__main__":
-    print "K = ", kval
     getHistoryNodes()
     getTestingNodes()
     print "Prepare for Data...finished"
 
-    predictChange()
+    results = []
 
+    for i in range(10):
+        print "K = ", kval
+        results.append( ( kval, predictChange() ))
+        kval = kval + 2
+
+    results.sort(key=itemgetter(1))
+    print "Results:" ,results
+    print "Best kval=", results[-1]
     #getCurNode()
