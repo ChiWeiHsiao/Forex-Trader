@@ -63,7 +63,7 @@ def predictChange():
     testLength = len(testY)
     historyLength = len(historyY)
     
-    numTestNodes = 1000
+    numTestNodes = 100
     print "number of Testing Nodes: ", numTestNodes
     #for t in range(testLength):
     for t in range(numTestNodes):
@@ -82,11 +82,14 @@ def predictChange():
         rise = 0
         drop = 0
         # Vote for the answer by k neighbors
+        totalWeights = 0
         for n in kneighbors:
+            weight = (-1.0) / n[0]
+            totalWeights = totalWeights + weight
             if( historyY[ n[1] ] > 0 ):
-                rise = rise + 1
+                rise = rise + weight #1
             else:
-                drop = drop + 1
+                drop = drop + weight #1
         predict = (rise > drop) # True=>rise, False=>drop
 
         #check if predicted y == real testing y?
@@ -108,6 +111,7 @@ if __name__ == "__main__":
     getHistoryNodes()
     getTestingNodes()
     print "Prepare for Data...finished"
+    print "Use weighted voting"
 
     results = []
 
