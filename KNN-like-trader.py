@@ -24,32 +24,24 @@ base_units = 1000
 history = []
 kval = 5
 
-def saveHistoryNodes():
-    # 50 candle prices in one node (25min), 100 nodes in history(1.7day)
-    fromTime = (datetime.utcnow() - timedelta(days=2, hours=0, minutes=0, seconds=0)).isoformat()+"Z"
-    count = '5000'
-    granularity = 'S15'
-    instr = "EUR_USD"
+def getHistoryNodes():
+    # get history data from file
+    # 50 candle prices in one node (25min), 1000 nodes in history(17day)
+    with open("history.txt", "r") as f:
+        for line in f: #1000 lines
+            data = line.split()
+            node = []
+            for number in data: #49 numbers
+                node.append(float(number))
+            history.append(node)
 
-    url = "https://api-fxpractice.oanda.com/v3/instruments/"+instr+"/candles"
-    query = {'from': fromTime, 'count': count, 'price': 'M', 'granularity': granularity }
-    r = requests.get(url, headers=headers, params=query)
-    if r.status_code != 200:
-        print "Save History Candle, Fail: ", r.status_code
-        return -1
-    else:
-        candles = json.loads(r.text)['candles']
         index = 0
-        fp = open("history.txt", "w")
-
         for i in range(100):
             node = []
             for j in range(50):
                 node.append(float(candles[index]['mid']['c']))
                 index = index + 1
             history.append(node)
-        
-        fp.close()
 
 def getCurNode():
     toTime = datetime.utcnow().isoformat()+"Z"
@@ -65,7 +57,8 @@ def getCurNode():
         candles = json.loads(r.text)['candles']
         cur = float (candles[-1]['mid']['c'])
         node = []
-        for i in range(50):
+        for i in range(49):
+            diff = float(candles[i+1]['mid']['c']) - float(candles[i]['mid']['c'])
             node.append( float(candles[i]['mid']['c']) )
 
 def predictChange():
@@ -200,7 +193,7 @@ def getAccountBalance():
         return -1
 
 if __name__ == "__main__":
-    saveHistoryNodes()
+    getHistory
     #getCurNode()
     
 
