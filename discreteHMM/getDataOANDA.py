@@ -2,20 +2,17 @@ import ConfigParser
 import requests
 import json
 from datetime import datetime, timedelta
-import numpy as np
 import time 
 
 config = ConfigParser.ConfigParser()
-config.read('api.config')
+config.read('../api.config')
 OANDA_ACCESS_TOKEN = config.get('account', 'token')
 OANDA_ACCOUNT_ID = config.get('account', 'accountID')
 headers = {"Content-Type": 'application/json' ,'Authorization': 'Bearer '+OANDA_ACCESS_TOKEN}
 
 fp = open("history.txt", "w")
 
-
 def saveHistoryNodes():
-    # 50 candle prices in one node (25min), 1000 nodes in history(about 17day)
     fromTime = datetime.utcnow() - timedelta(days = 60)
     fp.write("from time: ")
     fp.write(fromTime.strftime("%Y-%m-%d %H:%M:%S"))
@@ -39,24 +36,10 @@ def saveOneHundredNodes(fromT):
         return -1
     else:
         candles = json.loads(r.text)['candles']
-        
-        #overlap
-        for start in range(4951):
-            for j in range(49):
-                diff = float(candles[start+j+1]['mid']['c']) - float(candles[start+j]['mid']['c'])
-                fp.write(str(diff))
-                fp.write(" ")
-            fp.write("\n")
-
-        """ 
-        #non-overlap
-        for i in range(100):
-            for j in range(49):
-                diff = float(candles[j+1]['mid']['c']) - float(candles[j]['mid']['c'])
-                fp.write(str(diff))
-                fp.write(" ")
-            fp.write("\n")
-        """        
+        for candle in candles:
+            fp.write(candle['mid']['c'])
+            fp.write(",")
+        fp.write("\n")
 
 if __name__ == "__main__":
     saveHistoryNodes()
