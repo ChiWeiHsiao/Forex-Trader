@@ -1,3 +1,4 @@
 api.config
 try.py
 *.csv
+discreteHMM/
