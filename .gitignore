@@ -2,3 +2,4 @@ api.config
 try.py
 *.csv
 discreteHMM/
+data/data/
