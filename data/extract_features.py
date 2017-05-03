@@ -42,10 +42,10 @@ def extract_features():
   close_sub_open = np.reshape(close_sub_open, (2268, 142, 1))
   print('shape of close_sub_open: ', close_sub_open.shape)
 
-  y = log_return[:,-1] # last of log_return
+  y = log_return[:,-1] # last one of log_return
   log_return = log_return[:,0:-1]
   x =  np.concatenate((log_return, upper_length, lower_length, whole_length, close_sub_open), axis=2)
-  print('shape of x:', x.shape) #(2268, 142, 4)
+  print('shape of x:', x.shape) #(2268, 142, 5)
   print('shape of y:', y.shape) #(2268, 1, 1)
   return x, y
 
@@ -61,8 +61,15 @@ def create_dataset(x, y):
   np.savez('rnn_data', x_train=x_train, y_train=y_train, x_test=x_test, y_test=y_test)
 
 
+def create_answer():
+  candles = np.load('data/candles_05-17.npy')
+  last_two = np.reshape(candles[:, -2, 0], (2268, 1))
+  last_one = np.reshape(candles[:, -1, 0], (2268, 1))
+  np.savez('ans_data', last_two=last_two, last_one=last_one)
+
 
 
 if __name__ == '__main__':
-  #x, y = extract_features()
-  #create_dataset(x, y)
+  x, y = extract_features()
+  create_dataset(x, y)
+  create_answer()

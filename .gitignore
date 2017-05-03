@@ -3,3 +3,5 @@ try.py
 *.csv
 discreteHMM/
 data/data/
+RNN/models/
+RNN/statistics/
