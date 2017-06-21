@@ -5,7 +5,7 @@ from tensorflow.contrib import rnn
 import json
 from util import to_categorical, Dataset
 
-data_dir = 'H6/'
+data_dir = '../data/H6/'
 data_name = data_dir + 'rnn_features.npz'
 ans_name = data_dir + 'rnn_ans.npz'
 model_dir = 'H6_LSTM_rnn_features_ep300'
@@ -38,7 +38,7 @@ test_statistcs_file = 'statistics/' + model_dir +'_test.json'
 
 
 #### Load data ####
-data = np.load('../data/{}'.format(data_name))
+data = np.load(data_name)
 # 5 features: (log_return, upper_length, lower_length, whole_length, close_sub_open)
 split_train_test = 5984  # divisible by batch_size
 last_divisible_index = batch_size*int(data['X'].shape[0]/batch_size)
