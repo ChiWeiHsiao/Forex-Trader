@@ -115,6 +115,12 @@ def calculate_error_with_real_price(sess, predict_op, X, Y, real_last_one, real_
     var_predict = np.var(predict_last_one)
     print('Predict mean=%.4f, var=%.5f' %(mean_predict, var_predict))
 
+    # Calculate R^2
+    SSE = np.sum(np.square(real_last_one - predict_last_one))
+    SST = np.sum(np.square(real_last_one - mean_real))
+    R2 = 1 - SSE / SST
+    print('R^2=%.4f' %R2)
+
     length = real_last_one.shape[0]
     real_last_one = np.reshape(real_last_one, length)
     real_last_two = np.reshape(real_last_two, length)
