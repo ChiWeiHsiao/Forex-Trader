@@ -27,7 +27,7 @@ def create_overlap_candles(infile_list, outfile, timesteps):
     print('Number of samples: %d' %n_samples)
     return n_samples
 
-def extract_features(infile, n_samples, timesteps, MA_window=None):
+def extract_features(infile, n_samples, timesteps):
     candles = np.load(infile)
     # candles.shape = (n_samples, timesteps, 4) 
     # last dim is one candle: (c, h, l, o)
@@ -43,10 +43,6 @@ def extract_features(infile, n_samples, timesteps, MA_window=None):
             log_return = np.append(log_return, new_log_return, axis=1)
     print('shape of log_return: ', log_return.shape) #(n_samples, timesteps+1)
     log_return = np.reshape(log_return, (n_samples, timesteps+1, 1))
-    # MA(return, MA_window)
-    #if MA_window:
-
-
     # upper_length = high_1 - max(open_3,close_0) => + 
     open_and_close = np.append(np.reshape(candles[:,:,3],(n_samples,timesteps+2,1)), np.reshape(candles[:,:,0], (n_samples,timesteps+2,1)), axis = 2)
     upper_length = candles[:,:,1] - np.amax(open_and_close, axis=2)
@@ -107,6 +103,51 @@ def extract_candles_and_log_return(infile, n_samples, timesteps):
     print('shape of y:', y.shape)
     return x, y
 
+def extract_MA_features_answer(infile, timesteps, MA_window):
+    candles = np.load(infile)
+    n_samples = candles.shape[0]
+    # candles.shape = (n_samples, timesteps+2, 4) 
+    # last dim is one candle: (c, h, l, o)
+    for i in range(timesteps+1):
+        if i == 0:
+            log_return = np.log(candles[:,i+1,0]) - np.log(candles[:,i,0])
+            log_return = np.reshape(log_return, (-1,1))
+            print(log_return.shape)
+        else:
+            new_log_return = np.log(candles[:,i+1,0]) - np.log(candles[:,i,0])
+            new_log_return = np.reshape(new_log_return, (-1,1))
+            log_return = np.append(log_return, new_log_return, axis=1)
+    print('shape of log_return: ', log_return.shape) #(n_samples, timesteps+1)
+    log_return = np.reshape(log_return, (n_samples, timesteps+1, 1))
+
+    # MA
+    n_MA = (timesteps+1) - MA_window + 1
+    is_first = True
+    for sample in range(log_return.shape[0]):
+        for i in range(n_MA):
+            cur_MA = np.mean(log_return[sample][i:i+MA_window])
+            cur_return = log_return[sample][i+MA_window-1]
+            cur_candle = candles[sample][i+MA_window]
+            #print('cur_candle', cur_candle.shape)
+            cur = np.append(cur_MA, cur_return)
+            cur = np.append(cur, cur_candle)
+            if i == 0:
+                one_timestep_feature =  np.array([cur])
+            elif i == n_MA-1:
+                one_timestep_MA_ans = cur_MA
+            else:
+                one_timestep_feature = np.append(one_timestep_feature, np.array([cur]), axis=0)
+        if is_first:
+            features = np.array([one_timestep_feature])
+            answers = one_timestep_MA_ans
+            is_first = False
+        else:
+            features = np.append(features, np.array([one_timestep_feature]), axis=0)
+            answers = np.append(answers, one_timestep_MA_ans)
+    print('features: ', features.shape)
+    print('answers: ', answers.shape)
+    return features, answers
+
 
 def create_dataset(x, y, split_index, outfile):
     # Split to Training set and Testing set
@@ -142,21 +183,24 @@ def create_trend_answer(infile, outfile, n_samples):
 
 
 if __name__ == '__main__':
-    timesteps = 8
+    timesteps = 12
     '''
     year_raw_candle_files = []
     for i in range(2005, 2017+1):
         year_raw_candle_files.append('H6/candles/raw_candles_%s.npy' %i)
-    n_samples = create_overlap_candles(year_raw_candle_files, 'H6/H6-overlap', timesteps+2)
+    n_samples = create_overlap_candles(year_raw_candle_files, 'H6/H6-overlap-'+str(timesteps+2), timesteps+2)
     '''
-    n_samples = 6237
-    infile = 'H6/H6-overlap.npy'  #'candles_05-17.npy'
-    #x, y = extract_features(infile, n_samples, timesteps, MA_window=5)
+    #n_samples = 6237
+    infile = 'H6/H6-overlap-14.npy'  #'candles_05-17.npy'
+    x, y = extract_MA_features_answer(infile, timesteps, MA_window=5)
+    np.savez('H6/rnn_MA_return_candle', X=x, Y=y)
+    
+    #x, y = extract_features(infile, n_samples, timesteps)
     #np.savez('H6/rnn_features', X=x, Y=y)
     #create_dataset(x, y, split_index=6000, outfile='H6/rnn_features')
 
-    x, y = extract_candles_and_log_return(infile, n_samples, timesteps)
-    np.savez('H6/rnn_candles_return', X=x, Y=y) 
+    #x, y = extract_candles_and_log_return(infile, n_samples, timesteps)
+    #np.savez('H6/rnn_candles_return', X=x, Y=y) 
     #create_dataset(x, y, split_index=6000, outfile='H6/rnn_raw_features')
     
     #create_answer(infile, outfile='H6/rnn_ans', n_samples)
