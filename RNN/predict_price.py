@@ -33,6 +33,7 @@ test_statistcs = {
     'predict_price': [],
     'sign_accuravy': 0.0,
     'MSE': 0.0,
+    'R2': 0.0,
 }
 test_statistcs_file = 'statistics/' + model_dir +'_test.json'
 
@@ -119,6 +120,7 @@ def calculate_error_with_real_price(sess, predict_op, X, Y, real_last_one, real_
     SSE = np.sum(np.square(real_last_one - predict_last_one))
     SST = np.sum(np.square(real_last_one - mean_real))
     R2 = 1 - SSE / SST
+    statistcs['R2'] = R2
     print('R^2=%.4f' %R2)
 
     length = real_last_one.shape[0]
