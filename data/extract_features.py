@@ -103,7 +103,7 @@ def extract_candles_and_log_return(infile, n_samples, timesteps):
     print('shape of y:', y.shape)
     return x, y
 
-def extract_MA_features_answer(infile, timesteps, MA_window):
+def extract_MA_features_answer(infile, timesteps, MA_window, normalize, candle):
     candles = np.load(infile)
     n_samples = candles.shape[0]
     # candles.shape = (n_samples, timesteps+2, 4) 
@@ -122,28 +122,33 @@ def extract_MA_features_answer(infile, timesteps, MA_window):
 
     # MA
     n_MA = (timesteps+1) - MA_window + 1
-    is_first = True
+    is_first_sample = True
     for sample in range(log_return.shape[0]):
         for i in range(n_MA):
             cur_MA = np.mean(log_return[sample][i:i+MA_window])
             cur_return = log_return[sample][i+MA_window-1]
-            cur_candle = candles[sample][i+MA_window]
-            #print('cur_candle', cur_candle.shape)
             cur = np.append(cur_MA, cur_return)
-            cur = np.append(cur, cur_candle)
+            if candle:
+                cur_candle = candles[sample][i+MA_window]
+                cur = np.append(cur, cur_candle)
             if i == 0:
                 one_timestep_feature =  np.array([cur])
             elif i == n_MA-1:
                 one_timestep_MA_ans = cur_MA
             else:
                 one_timestep_feature = np.append(one_timestep_feature, np.array([cur]), axis=0)
-        if is_first:
+        if is_first_sample:
             features = np.array([one_timestep_feature])
             answers = one_timestep_MA_ans
-            is_first = False
+            is_first_sample = False
         else:
             features = np.append(features, np.array([one_timestep_feature]), axis=0)
             answers = np.append(answers, one_timestep_MA_ans)
+    if normalize:
+        ori_features = features
+        features = (features/np.stack([features[:,0,:]+1e-10 for _ in range(features.shape[1])], axis=1)) - 1
+
+        answers = (answers[:] / (ori_features[:,0,0]+1e-10)) - 1
     print('features: ', features.shape)
     print('answers: ', answers.shape)
     return features, answers
@@ -192,8 +197,8 @@ if __name__ == '__main__':
     '''
     #n_samples = 6237
     infile = 'H6/H6-overlap-14.npy'  #'candles_05-17.npy'
-    x, y = extract_MA_features_answer(infile, timesteps, MA_window=5)
-    np.savez('H6/rnn_MA_return_candle', X=x, Y=y)
+    x, y = extract_MA_features_answer(infile, timesteps, MA_window=5, normalize=True, candle=False)
+    np.savez('H6/rnn_normalized_MA_return', X=x, Y=y)
     
     #x, y = extract_features(infile, n_samples, timesteps)
     #np.savez('H6/rnn_features', X=x, Y=y)
