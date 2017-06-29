@@ -103,7 +103,7 @@ def extract_candles_and_log_return(infile, n_samples, timesteps):
     print('shape of y:', y.shape)
     return x, y
 
-def extract_MA_features_answer(infile, timesteps, MA_window, normalize, candle):
+def extract_MA_features_answer(infile, timesteps, MA_window, normalize, candle, num_ans=0):
     candles = np.load(infile)
     n_samples = candles.shape[0]
     # candles.shape = (n_samples, timesteps+2, 4) 
@@ -133,17 +133,21 @@ def extract_MA_features_answer(infile, timesteps, MA_window, normalize, candle):
                 cur = np.append(cur, cur_candle)
             if i == 0:
                 one_timestep_feature =  np.array([cur])
-            elif i == n_MA-1:
-                one_timestep_MA_ans = cur_MA
+            #elif i == n_MA-1:
+            elif i == n_MA-num_ans:
+                one_timestep_MA_ans = np.array([cur_MA])
+            elif i > n_MA-num_ans:
+                one_timestep_MA_ans = np.append(one_timestep_MA_ans, np.array([cur_MA]), axis=0)
             else:
                 one_timestep_feature = np.append(one_timestep_feature, np.array([cur]), axis=0)
+
         if is_first_sample:
             features = np.array([one_timestep_feature])
-            answers = one_timestep_MA_ans
+            answers = np.array([one_timestep_MA_ans])
             is_first_sample = False
         else:
             features = np.append(features, np.array([one_timestep_feature]), axis=0)
-            answers = np.append(answers, one_timestep_MA_ans)
+            answers = np.append(answers, np.array([one_timestep_MA_ans]), axis=0)
     if normalize:
         ori_features = features
         features = (features/np.stack([features[:,0,:]+1e-10 for _ in range(features.shape[1])], axis=1)) - 1
@@ -197,8 +201,11 @@ if __name__ == '__main__':
     '''
     #n_samples = 6237
     infile = 'H6/H6-overlap-14.npy'  #'candles_05-17.npy'
-    x, y = extract_MA_features_answer(infile, timesteps, MA_window=5, normalize=True, candle=False)
-    np.savez('H6/rnn_normalized_MA_return', X=x, Y=y)
+    x, y = extract_MA_features_answer(infile, timesteps, MA_window=5, normalize=False, candle=False, num_ans=3)
+    np.savez('H6/rnn_MA_return_ans_3', X=x, Y=y)
+
+    #x, y = extract_MA_features_answer(infile, timesteps, MA_window=5, normalize=True, candle=False)
+    #np.savez('H6/rnn_normalized_MA_return', X=x, Y=y)
     
     #x, y = extract_features(infile, n_samples, timesteps)
     #np.savez('H6/rnn_features', X=x, Y=y)

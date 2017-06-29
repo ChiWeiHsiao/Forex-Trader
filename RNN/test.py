@@ -6,7 +6,7 @@ import json
 from util import to_categorical, Dataset
 import os
 
-n_epochs = 3
+n_epochs = 10
 batch_size = 32
 show_steps = 3 # show statistics per k iters
 learning_rate = 1e-7
@@ -17,9 +17,9 @@ shuffle = False
 USE_DROP = False
 
 architecture = 'LSTM'
-info = 'smallData-RMS1e7-Dense-2LSTM20-noDrop'  #'smallData-RMS1e7-Dense-2LSTM20-noDrop'
+info = 'smallData-RMS1e7-Dense-2LSTM20-noDrop'
 granularity = 'H6'  # 'M10'
-data_name = 'rnn_MA_return' #'rnn_MA_return_candle' #'rnn_MA_return'
+data_name = 'rnn_MA_return_ans_3' #'rnn_MA_return_candle' #'rnn_MA_return'
 eid = granularity + '_' + info + '_' + data_name + '_ep' + str(n_epochs)
 save_directory = 'models/' + eid
 data_path = '../data/'+ granularity + '/' + data_name + '.npz'

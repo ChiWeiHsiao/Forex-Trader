@@ -6,7 +6,7 @@ import json
 from util import to_categorical, Dataset
 import os
 
-n_epochs = 3
+n_epochs = 10
 batch_size = 32
 show_steps = 3 # show statistics per k iters
 learning_rate = 1e-7
@@ -19,7 +19,7 @@ USE_DROP = False
 architecture = 'LSTM'
 info = 'smallData-RMS1e7-Dense-2LSTM20-noDrop'
 granularity = 'H6'  # 'M10'
-data_name = 'rnn_MA_return'#'rnn_normalized_MA_return.npz'  #'rnn_MA_return_candle' #'rnn_MA_return_candle' #'rnn_MA_return'
+data_name = 'rnn_MA_return_ans_3'#'rnn_normalized_MA_return.npz'  #'rnn_MA_return_candle' #'rnn_MA_return_candle' #'rnn_MA_return' #rnn_MA_return_ans_3
 eid = granularity + '_' + info + '_' + data_name + '_ep' + str(n_epochs)
 save_directory = 'models/' + eid
 data_path = '../data/'+ granularity + '/' + data_name + '.npz'
@@ -75,15 +75,15 @@ Y_test = data['Y'][1440:1440+64]
 print('X_train[0]', X_train[0])
 print('Y_train[0:10]', Y_train[0:10])
 
-Y_train = np.expand_dims(Y_train, axis=-1)
-Y_test = np.expand_dims(Y_test, axis=-1)
+#Y_train = np.expand_dims(Y_train, axis=-1)
+#Y_test = np.expand_dims(Y_test, axis=-1)
 print('Y_train', Y_train.shape)
 print('X_train', X_train.shape)
 
 n_samples = X_train.shape[0]
 n_timesteps = X_train.shape[1]
 n_input = X_train.shape[2]
-n_output = 1  # rise or fall
+n_output = Y_train.shape[1]  # rise or fall
 n_iters = int(n_epochs * n_samples / batch_size)
 print('number of iterations %d' %n_iters)
 # Convert to Dataset instance 
@@ -128,14 +128,21 @@ def model(drop):
 
     init_state = stacked_cell.zero_state(b_size, tf.float32)
     rnn_outputs, final_state = rnn.static_rnn(stacked_cell, x_sequence, initial_state=init_state, dtype=tf.float32)
-    predict = dense(rnn_outputs[-1], n_output)
+    print('rnn_outputs[-n_output:], ', len(rnn_outputs[-n_output:]))
+    #predict = dense(rnn_outputs[-1], 1) # 100=>1
+    predict = tf.stack([dense(rnn_outputs[-i], 1) for i in range(n_output, 0, -1)], axis=1)#dense2d(rnn_outputs[-n_output:], n_out=n_output) # (100, 3) => (3)
+    print('predict, ', predict.get_shape())
+    predict = predict[:,:,0]
+    print('predict, ', predict.get_shape())
     # Define cost and optimizer
     cost = tf.reduce_mean(tf.squared_difference(predict, y))
     #cost = tf.reduce_mean( tf.nn.softmax_cross_entropy_with_logits(labels=y, logits=predict) )
     train_step = tf.train.RMSPropOptimizer(learning_rate).minimize(cost)  #tf.train.AdamOptimizer(learning_rate).minimize(cost)
 
-    last_timesteps = tf.unstack(x, axis=1)[-1]  # => (batch, feature_of_one_timestep)
-    last_MA = tf.unstack(last_timesteps, axis=1)[0]  # MA is the first feature
+    last_timesteps = tf.stack(tf.unstack(x, axis=1)[-n_output:], axis=1)  # => (batch, feature_of_one_timestep)
+    print('last_timesteps, ', last_timesteps.get_shape())
+    last_MA = last_timesteps[:, :, 0]#tf.stack(tf.unstack(last_timesteps, axis=1)[0])  # MA is the first feature
+    print('last_MA, ', last_MA.get_shape())
     predict_sign = tf.sign(predict-last_MA)
     real_sign = tf.sign(y-last_MA)
     correct_prediction = tf.equal(tf.sign(predict-last_MA), tf.sign(y-last_MA))
